@@ -13,12 +13,22 @@ const useService = () => {
     return response.data.meals;
   };
 
+  const getMealsByIngredient = async (ingredient: string) => {
+    const response = await axiosInstance.get(`/filter.php?i=${ingredient}`);
+    return response.data.meals;
+  };
+
   const getMealDetails = async (mealName: string) => {
     const response = await axiosInstance.get(`/search.php?s=${mealName}`);
     return response.data.meals[0];
   };
 
-  return { getCategories, getMealsByCategory, getMealDetails };
+  return {
+    getCategories,
+    getMealsByCategory,
+    getMealDetails,
+    getMealsByIngredient,
+  };
 };
 
 export default useService;
