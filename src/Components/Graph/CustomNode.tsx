@@ -1,5 +1,4 @@
 import { Handle, Position } from "@xyflow/react";
-import React from "react";
 
 interface dataProps {
   data: {
@@ -9,6 +8,39 @@ interface dataProps {
     hasEdge: boolean;
   };
 }
+
+const colorDecider = (type: string) => {
+  let color = "";
+
+  switch (type) {
+    case "explore":
+      color = "bg-gray-500";
+      break;
+    case "category":
+      color = "bg-red-500";
+      break;
+    case "viewMeal":
+      color = "bg-green-500";
+      break;
+    case "optionNode":
+      color = "bg-blue-500";
+      break;
+    case "viewIngredients":
+      color = "bg-green-500";
+      break;
+    case "viewTags":
+      color = "bg-green-500";
+      break;
+    case "viewDetails":
+      color = "bg-green-500";
+      break;
+    default:
+      color = "bg-blue-500";
+      break;
+  }
+
+  return color;
+};
 const CustomNode = ({ data }: dataProps) => {
   return (
     <div
@@ -25,7 +57,11 @@ const CustomNode = ({ data }: dataProps) => {
         />
       )}
 
-      <span className="material-icons">{data.icon}</span>
+      <span
+        className={"material-icons text-white p-1 " + colorDecider(data.type)}
+      >
+        {data.icon}
+      </span>
       <p className="text-gray-600">{data.label}</p>
 
       {data?.hasEdge && (
