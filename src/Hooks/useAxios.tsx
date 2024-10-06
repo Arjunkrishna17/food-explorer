@@ -38,6 +38,8 @@ const useAxios = () => {
       errorMessage = error.message;
     }
 
+    console.log({ error, errorMessage });
+
     if (needToast) {
       toast.error(errorMessage);
     }

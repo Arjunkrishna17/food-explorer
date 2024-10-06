@@ -8,6 +8,7 @@ import "./Graph.css";
 import CustomNode from "./CustomNode";
 import useService from "../../Hooks/useService";
 import Sidebar from "../SideBar/Sidebar";
+import Loader from "../Loader/Loader";
 
 interface Category {
   idCategory: string;
@@ -40,24 +41,25 @@ interface OptionNode {
   strMealThumb: string;
 }
 
+const defaultGraph = {
+  id: "1",
+  data: {
+    label: "Explore",
+    icon: "explore",
+    type: "explore",
+    nodeLevel: 0,
+    hasEdge: false,
+  },
+  type: "custom",
+  position: { x: 300, y: 200 },
+};
+
 const Graph = () => {
-  const [nodes, setNodes] = useState<Node[]>([
-    {
-      id: "1",
-      data: {
-        label: "Explore",
-        icon: "explore",
-        type: "explore",
-        nodeLevel: 0,
-        hasEdge: false,
-      },
-      type: "custom",
-      position: { x: 300, y: 200 },
-    },
-  ]);
+  const [nodes, setNodes] = useState<Node[]>([defaultGraph]);
   const [selectedMealInfo, setSelectedMealInfo] = useState<any>();
   const [edges, setEdges] = useState<Edge[]>([]);
   const [sideBar, setSideBar] = useState({ show: false, data: null });
+  const [isLoading, setIsLoading] = useState(false);
 
   const {
     getCategories,
@@ -76,9 +78,19 @@ const Graph = () => {
   const removeOpenedNodeInSameLevel = (nodeObj: Node) => {
     setSelectedMealInfo(undefined);
 
-    const newNOdes = nodes.filter(
-      (node) => node.data.nodeLevel <= nodeObj.data.nodeLevel
-    );
+    //remove edge points in same level and nodes after the current node level.
+    let newNOdes: Node[] = [];
+
+    nodes.forEach((node) => {
+      if (node.data.nodeLevel === nodeObj.data.nodeLevel) {
+        node.data.hasEdge = false;
+      }
+
+      if (node.data.nodeLevel <= nodeObj.data.nodeLevel) {
+        newNOdes.push(node);
+      }
+    });
+
     const newEdges = edges.filter(
       (edge) => edge.data.nodeLevel <= nodeObj.data.nodeLevel
     );
@@ -90,10 +102,12 @@ const Graph = () => {
   };
 
   const getAllCategories = async (nodeObj: Node) => {
-    const newNodeLIst = removeOpenedNodeInSameLevel(nodeObj);
-    updateEdgeVisibility(nodeObj, newNodeLIst);
-
+    setIsLoading(true);
     const result: Category[] = await getCategories();
+    setIsLoading(false);
+
+    if (!result) return;
+
     const categories = result.slice(0, 5);
 
     const categoryNodes = categories.map((category, index) =>
@@ -116,9 +130,6 @@ const Graph = () => {
   };
 
   const addViewMeal = (nodeObj: Node) => {
-    const newNodeLIst = removeOpenedNodeInSameLevel(nodeObj);
-    updateEdgeVisibility(nodeObj, newNodeLIst);
-
     const node = createNode(
       "View Meals",
       "visibility",
@@ -147,18 +158,19 @@ const Graph = () => {
   };
 
   const addAllMealNodes = async (nodeObj: Node) => {
-    const newNodeLIst = removeOpenedNodeInSameLevel(nodeObj);
-    updateEdgeVisibility(nodeObj, newNodeLIst);
-
     const incomingEdge = edges.find((edge) => edge.target === nodeObj.id);
     const previousNode = nodes.find((n) => n.id === incomingEdge?.source);
 
     if (!previousNode) throw new Error("Node not found");
 
+    setIsLoading(true);
     const result: OptionNode[] = await getMeals(
       previousNode.data.type,
       previousNode.data.label
     );
+    setIsLoading(false);
+
+    if (!result) return;
 
     const firstFiveMeals = result.slice(0, 5);
 
@@ -182,9 +194,6 @@ const Graph = () => {
   };
 
   const addMealOptions = (nodeObj: Node) => {
-    const newNodeLIst = removeOpenedNodeInSameLevel(nodeObj);
-    updateEdgeVisibility(nodeObj, newNodeLIst);
-
     const mealOptions = [
       createNode(
         "View Ingredients",
@@ -229,21 +238,27 @@ const Graph = () => {
     return mealInfo;
   };
 
-  const getIngredients = async (nodeObj: Node) => {
-    const newNodeLIst = removeOpenedNodeInSameLevel(nodeObj);
-    updateEdgeVisibility(nodeObj, newNodeLIst);
+  const getMealInfo = async (previousNode: Node) => {
+    let mealInfo;
+    setIsLoading(true);
+    if (selectedMealInfo) {
+      mealInfo = selectedMealInfo;
+    } else {
+      mealInfo = await getMealsDetailsFn(previousNode.data.label);
+    }
+    setIsLoading(false);
 
+    return mealInfo;
+  };
+
+  const getIngredients = async (nodeObj: Node) => {
     const incomingEdge = edges.find((edge) => edge.target === nodeObj.id);
     const previousNode = nodes.find((n) => n.id === incomingEdge?.source);
 
     if (previousNode) {
-      let mealInfo;
+      let mealInfo = await getMealInfo(previousNode);
 
-      if (selectedMealInfo) {
-        mealInfo = selectedMealInfo;
-      } else {
-        mealInfo = await getMealsDetailsFn(previousNode.data.label);
-      }
+      if (!mealInfo) return;
 
       const ingredients: Node[] = [];
 
@@ -258,7 +273,7 @@ const Graph = () => {
             "ingredient",
             nodeObj.data.nodeLevel + 1,
             nodeObj.position.x,
-            nodeObj.position.y - 100 + i * 100
+            nodeObj.position.y - 200 + i * 100
           );
 
           ingredients.push(node);
@@ -275,20 +290,11 @@ const Graph = () => {
   };
 
   const getTags = async (nodeObj: Node) => {
-    const newNodeLIst = removeOpenedNodeInSameLevel(nodeObj);
-    updateEdgeVisibility(nodeObj, newNodeLIst);
-
     const incomingEdge = edges.find((edge) => edge.target === nodeObj.id);
     const previousNode = nodes.find((n) => n.id === incomingEdge?.source);
 
     if (previousNode) {
-      let mealInfo;
-
-      if (selectedMealInfo) {
-        mealInfo = selectedMealInfo;
-      } else {
-        mealInfo = await getMealsDetailsFn(previousNode.data.label);
-      }
+      let mealInfo = await getMealInfo(previousNode);
 
       if (!mealInfo.strTags) return; //TODO show no tags in toast
 
@@ -325,29 +331,19 @@ const Graph = () => {
   };
 
   const viewDetails = async (nodeObj: Node) => {
-    removeOpenedNodeInSameLevel(nodeObj);
+    const incomingEdge = edges.find((edge) => edge.target === nodeObj.id);
+    const previousNode = nodes.find((n) => n.id === incomingEdge?.source);
 
-    const incomingEdges = edges.filter((edge) => edge.target === nodeObj.id);
+    if (previousNode) {
+      let mealInfo = await getMealInfo(previousNode);
 
-    const previousNodes = incomingEdges.map((edge) =>
-      nodes.find((n) => n.id === edge.source)
-    );
-
-    if (previousNodes[0]) {
-      let mealInfo;
-
-      if (selectedMealInfo) {
-        mealInfo = selectedMealInfo;
-      } else {
-        mealInfo = await getMealsDetailsFn(previousNodes[0].data.label);
-      }
+      if (!mealInfo.strTags) return;
 
       setSideBar({ show: true, data: mealInfo });
     }
   };
 
-  const onNodeClickHandler = (node: Node) => {
-    console.log(node.data);
+  const orchestratorFn = (node: Node) => {
     switch (node.data.type) {
       case "explore":
         getAllCategories(node);
@@ -378,6 +374,14 @@ const Graph = () => {
     }
   };
 
+  const onNodeClickHandler = (node: Node) => {
+    //Initially update the edge point in custom node and remove any node greater than current clicked node
+    const newNodeLIst = removeOpenedNodeInSameLevel(node);
+    updateEdgeVisibility(node, newNodeLIst);
+
+    orchestratorFn(node); //Call right function to create edge and node
+  };
+
   const nodeTypes = {
     custom: CustomNode,
   };
@@ -401,6 +405,8 @@ const Graph = () => {
           onClose={() => setSideBar({ show: false, data: null })}
         />
       )}
+
+      {isLoading && <Loader />}
     </div>
   );
 };
