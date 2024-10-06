@@ -12,9 +12,7 @@ interface dataProps {
 const getWidth = (type: string) => {
   let width = "w-44";
 
-  console.log(type);
-
-  if (type === "Explore") {
+  if (type === "explore") {
     width = "w-34";
   } else if (type === "optionNode") {
     width = "w-72";
